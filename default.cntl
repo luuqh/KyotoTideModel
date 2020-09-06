@@ -1,0 +1,548 @@
+#!/bin/sh
+# $Id: cntl 12 2008-12-11 11:12:34Z ishikawa $
+#
+# qsub script
+#
+# @$-q gh10056
+# @$-lP 32
+# @$-lp 4
+# @$-lm 2gb
+# @$-ls 15mb
+# @$-eo
+# @$-lT 1000:00:00
+#
+# EXPERIMENT: 
+# 266; Dump 
+#
+# code changes:
+# 2011/07/20: add astronomical argument by Schwiderski 1980 in order to run experiment simultaneousely
+# 2011/05/20: switch to Schwiderski 1980 equillibrium tide
+# 2011/05/19: new settings to In-san data path (he moved folder to elsewhere, so we upload again)
+# 2011/03/09: correct dumping from 101101a
+# 2011/03/07: flexible dumping
+# 2011/02/17: phase correction cos (2pi-phase) in stead of cos(phase) and fit boundary
+# 2010/10/23: perfect energy was obtained at 101022a for K1
+# 2010/10/19: temporarily set a good standard of fdump
+# 2010/10/14: fix bug of bcast ut_constituent in (set)
+# 2010/10/13: fix bug of idump hour->day in idum (date_manage)
+# 2010/10/02: set new standard: dumpcase=5; 5^10-3; 5^10-5; 5^10-7
+# 2010/09/29: in addition to 16 major short tides, we added 33 minor short, 7 major long, 5 minor short
+# 2010/09/26: set a standard: dumpcase=5; 5^10-4; 5^10-7
+# 2010/09/24: fix the bug associated with parallelization of hta in brtrop
+# 2010/09/23: fix the bug associated with parallelization of time in mod_nao
+# 2010/09/21: bug is associated with h_tide difference at open boundaries
+# 2010/09/11: interpolation of ht provides good results
+# 2010/09/10: find a big bug in differencing of ht in flmd in (brtrop)
+# 2010/09/01: fix bug of arrays in dumptide in default=0 case
+# 2010/08/04: boundary noises removed at sponze zone provide very good results
+# 2010/08/02: fix a bug in call equitide before it was used in barotrop
+# 2010/07/30: fix a bug in EQ2OUT associated with eq_cory
+# 2010/07/26: linear dumping in the SW areas
+# 2010/07/24: csmag=2; off EQ2OUT on default; equilibrium tide ON
+# 2010/07/21: fix equilibrium tide (results an increase 100 times by correct m->cm)
+# 2010/07/21: fix bug in consistent: fdump=dumptide while fdump_h=f1h (but they are off on default)
+# 2010/07/16: add standard deviation fdump (mod_nao,barotrop)
+# 2010/07/13: add equilibrium tide (mod_nao,barotrop)
+# 2010/07/12: treat matching NAO again
+# 2010/06/23: reload stable 100621a; untreated boundary; hduv=10^5; dtuv=10; fdump=f1=5.5*10^6; fdump_h=f1h=f1*10; 
+# 2010/06/22: K1 misfit was initially fixed
+# 2010/05/12: test adding bottom wave drag (Schiller and Fiedler 2007)-> no success
+# 2010/04/30: re-add dumping to hcl
+# 2010/04/26: correct bug of nao lags
+# 2010/04/14: update the qh10056 -> gh10056 in control file
+# 2010/02/20: refresh all the codes and remove unused codes
+# 2010/02/10: add ability to record only 3D velocity fields in write ([lampout] in makefile)
+# 2010/01/21: remove folder /data in source and set as commons/tide
+# 2010/01/15: remove formula fdump_h since it generates a lot of noise
+# 2010/01/07: best parameters for dissipation (fdump and hduv) are set
+# 2009/12/22: develop the restart/save function for tidal model
+# 2009/12/08: turn off calculation of mean files
+# 2009/12/07: add & debug shared nonlinear variables
+# 2009/11/27: improve write function for nonlinear data
+#
+#
+
+# --- filename_2d data date & code for experiments
+
+set -x
+rev=13
+expnum=0709
+year=2007
+smonth=8
+sday=22
+
+# path
+mydir=truongsa/lab
+
+# calculation days
+# cday=61
+cday=14
+
+# --- full 3D data files !yymmddhhmm
+
+# calculation
+step_3d_year=0
+step_3d_month=0
+step_3d_day=$cday
+step_3d_hour=0
+step_3d_min=0
+step_3d_sec=0
+
+# start
+stat_3d_year=0
+stat_3d_month=0
+stat_3d_day=0
+stat_3d_hour=0
+stat_3d_min=0
+stat_3d_sec=0
+
+# interval
+writ_3d_year=0
+writ_3d_month=0
+writ_3d_day=$cday
+writ_3d_hour=0
+writ_3d_min=0
+writ_3d_sec=0
+
+# --- debug and mean files
+
+# debug interval
+writ_db_year=0
+writ_db_month=0
+writ_db_day=0
+writ_db_hour=3
+writ_db_min=0
+writ_db_sec=0
+
+# interval for mean files
+writ_mn_year=0
+writ_mn_month=0
+writ_mn_day=$cday
+writ_mn_hour=0
+writ_mn_min=0
+writ_mn_sec=0
+
+# --- filename_2d (2D tidal data file)
+
+# calculation
+step_2d_year=0
+step_2d_month=0
+step_2d_day=$cday
+step_2d_hour=0
+step_2d_min=0
+step_2d_sec=0
+
+# init
+stat_2d_year=0
+stat_2d_month=0
+stat_2d_day=12
+stat_2d_hour=0
+stat_2d_min=0
+stat_2d_sec=0
+
+# interval
+writ_2d_year=0
+writ_2d_month=0
+writ_2d_day=0
+writ_2d_hour=1
+writ_2d_min=0
+writ_2d_sec=0
+
+# --- filename_en (energy data file)
+
+# calculation
+step_en_year=0
+step_en_month=0
+step_en_day=$cday
+step_en_hour=0
+step_en_min=0
+step_en_sec=0
+
+# init
+stat_en_year=0
+stat_en_month=0
+stat_en_day=0
+stat_en_hour=0
+stat_en_min=0
+stat_en_sec=0
+
+# interval
+writ_en_year=0
+writ_en_month=0
+writ_en_day=0
+writ_en_hour=4
+writ_en_min=0
+writ_en_sec=0
+
+# --- filename_cn (continous data file)
+
+# calculation
+step_cn_year=0
+step_cn_month=0
+step_cn_day=$cday
+step_cn_hour=0
+step_cn_min=0
+step_cn_sec=0
+
+# init
+stat_cn_year=0
+stat_cn_month=0
+stat_cn_day=0
+stat_cn_hour=0
+stat_cn_min=0
+stat_cn_sec=0
+
+# interval
+writ_cn_year=0
+writ_cn_month=0
+writ_cn_day=$cday
+writ_cn_hour=0
+writ_cn_min=0
+writ_cn_sec=0
+
+# --- tidal settings
+
+# tidal constituent to be used (1) or not (0)
+ut_2n2=0
+ut_2q1=0
+ut_alp2=0
+ut_bet2=0
+ut_dlt2=0
+ut_eps2=0
+ut_et2=0
+ut_et2s=0
+ut_gam2=0
+ut_j1=0
+ut_j1s=0
+ut_k1=0
+ut_k1s=0
+ut_k1s2=0
+ut_k2=0
+ut_k2s=0
+ut_kai1=0
+ut_l2=0
+ut_lmd2=0
+ut_m1=0
+ut_m1s=0
+ut_m2=0
+ut_m2s=0
+ut_mf=0
+ut_mfs=0
+ut_mm=0
+ut_mms1=0
+ut_mms2=0
+ut_msf=0
+ut_msm=0
+ut_mtm=0
+ut_mtms=0
+ut_mu2=0
+ut_mu2s=0
+ut_n2=0
+ut_n2s=0
+ut_nu2=0
+ut_nu2s=0
+ut_o1=0
+ut_o1s=0
+ut_oo1=0
+ut_oo1s=0
+ut_p1=0
+ut_p1s=0
+ut_phi1=0
+ut_pi1=0
+ut_psi1=0
+ut_q1=0
+ut_q1s=0
+ut_r2=0
+ut_rho1=0
+ut_s2=0
+ut_s2s=0
+ut_sa=0
+ut_sgm1=0
+ut_ssa=0
+ut_ssas=0
+ut_t2=0
+ut_tau1=0
+ut_the1=0
+ut_zet2=0
+
+# zero init fields (true:zero, false:data file)
+# nfirst=".true."
+nfirst=".false."
+tideinit=rokka_tide_month_00.dat
+
+# prefix of save file names
+tidesave=rokka_tide_month_
+sgsave=rokka_sg_
+
+# --- core settings
+
+# number of cases
+nkeisu_day=1
+
+# experiment numbers
+exp=exp$expnum
+expp=`expr $expnum - 1 | awk '{printf "exp%4.4d",$1}'`
+expn=`expr $expnum + 1 | awk '{printf "exp%4.4d",$1}'`
+
+# working directory
+cd $QSUB_WORKDIR
+modeldir=/home3/t/t51851/$mydir
+datadir=/LARGEHS02/gh10056/luu/fab/commons
+# qhdir=/LARGEHS02/gh10056/r52975
+qhdir=/LARGEHS02/gh10056/luu/fab/commons/nwnpac_data/exp2007/1
+outdir=/LARGEHS02/gh10056/luu/$mydir
+fluxdir=/LARGEHS02/gh10056/tide/commons/flux
+
+# make sure outdir exist
+if [ ! -d $outdir ] ; then
+    mkdir $outdir
+fi
+
+# working file
+EXEC=$modeldir/rokka2007.bin
+
+# topography
+fu11=${datadir}/rokka_topo.dat ;export fu11
+
+# ---
+
+# original topo
+fu15=${datadir}/nwnpac_data/topo_nwnpac7d.dat; export fu15
+# side boundary data
+# fu23=${qhdir}/nwnpac_data/exp2007/1/bd_nwnpac1_${expp}_BigEndian.dat
+# fu24=${qhdir}/nwnpac_data/exp2007/1/bd_nwnpac1_${exp}_BigEndian.dat
+# fu25=${qhdir}/nwnpac_data/exp2007/1/bd_nwnpac1_${expn}_BigEndian.dat
+fu23=${qhdir}/bd_nwnpac1_${expp}_BigEndian.dat
+fu24=${qhdir}/bd_nwnpac1_${exp}_BigEndian.dat
+fu25=${qhdir}/bd_nwnpac1_${expn}_BigEndian.dat
+export fu23 ; export fu24 ; export fu25
+
+# initial data of nwnpac model (pc68m continue file)
+# fu37=${qhdir}/nwnpac1ct_${expp}_BigEndian.dat
+export fu37
+
+# ---
+
+# start file
+fu20=${datadir}/${tideinit} ;export fu20
+
+# continue file
+fu21=${outdir}/${tidesave} ;export fu21
+fu22=${outdir}/${sgsave} ;export fu22
+
+# offline calculation
+fu61=$outdir/surfnwnpac_off.dat; export fu61
+fu62=$outdir/fieldnwnpac_off.dat; export fu62
+
+# input tidal mixing parameter
+fu74=${datadir}/rokka_tidevis_be.dat ; export fu74
+
+# mask data for Laplacian vicocity
+fu75=${datadir}/rokka_laplacevis_mask.dat ; export fu75
+
+# output filename list file
+fu99=$modeldir/filename.lst
+
+# --- export settings
+
+# jobp namelist
+echo "&jobp" > $fu99
+echo "nfirst=${nfirst}" >> $fu99
+echo "step_3d_year=${step_3d_year}" >> $fu99
+echo "step_3d_month=${step_3d_month}" >> $fu99
+echo "step_3d_day=${step_3d_day}" >> $fu99
+echo "step_3d_hour=${step_3d_hour}" >> $fu99
+echo "step_3d_min=${step_3d_min}" >> $fu99
+echo "step_3d_sec=${step_3d_sec}" >> $fu99
+echo "stat_3d_year=${stat_3d_year}" >> $fu99
+echo "stat_3d_month=${stat_3d_month}" >> $fu99
+echo "stat_3d_day=${stat_3d_day}" >> $fu99
+echo "stat_3d_hour=${stat_3d_hour}" >> $fu99
+echo "stat_3d_min=${stat_3d_min}" >> $fu99
+echo "stat_3d_sec=${stat_3d_sec}" >> $fu99
+echo "writ_3d_year=${writ_3d_year}" >> $fu99
+echo "writ_3d_month=${writ_3d_month}" >> $fu99
+echo "writ_3d_day=${writ_3d_day}" >> $fu99
+echo "writ_3d_hour=${writ_3d_hour}" >> $fu99
+echo "writ_3d_min=${writ_3d_min}" >> $fu99
+echo "writ_3d_sec=${writ_3d_sec}" >> $fu99
+echo "writ_db_year=${writ_db_year}" >> $fu99
+echo "writ_db_month=${writ_db_month}" >> $fu99
+echo "writ_db_day=${writ_db_day}" >> $fu99
+echo "writ_db_hour=${writ_db_hour}" >> $fu99
+echo "writ_db_min=${writ_db_min}" >> $fu99
+echo "writ_db_sec=${writ_db_sec}" >> $fu99
+echo "step_2d_year=${step_2d_year}" >> $fu99
+echo "step_2d_month=${step_2d_month}" >> $fu99
+echo "step_2d_day=${step_2d_day}" >> $fu99
+echo "step_2d_hour=${step_2d_hour}" >> $fu99
+echo "step_2d_min=${step_2d_min}" >> $fu99
+echo "step_2d_sec=${step_2d_sec}" >> $fu99
+echo "stat_2d_year=${stat_2d_year}" >> $fu99
+echo "stat_2d_month=${stat_2d_month}" >> $fu99
+echo "stat_2d_day=${stat_2d_day}" >> $fu99
+echo "stat_2d_hour=${stat_2d_hour}" >> $fu99
+echo "stat_2d_min=${stat_2d_min}" >> $fu99
+echo "stat_2d_sec=${stat_2d_sec}" >> $fu99
+echo "step_en_year=${step_en_year}" >> $fu99
+echo "step_en_month=${step_en_month}" >> $fu99
+echo "step_en_day=${step_en_day}" >> $fu99
+echo "step_en_hour=${step_en_hour}" >> $fu99
+echo "step_en_min=${step_en_min}" >> $fu99
+echo "step_en_sec=${step_en_sec}" >> $fu99
+echo "stat_en_year=${stat_en_year}" >> $fu99
+echo "stat_en_month=${stat_en_month}" >> $fu99
+echo "stat_en_day=${stat_en_day}" >> $fu99
+echo "stat_en_hour=${stat_en_hour}" >> $fu99
+echo "stat_en_min=${stat_en_min}" >> $fu99
+echo "stat_en_sec=${stat_en_sec}" >> $fu99
+echo "step_cn_year=${step_cn_year}" >> $fu99
+echo "step_cn_month=${step_cn_month}" >> $fu99
+echo "step_cn_day=${step_cn_day}" >> $fu99
+echo "step_cn_hour=${step_cn_hour}" >> $fu99
+echo "step_cn_min=${step_cn_min}" >> $fu99
+echo "step_cn_sec=${step_cn_sec}" >> $fu99
+echo "stat_cn_year=${stat_cn_year}" >> $fu99
+echo "stat_cn_month=${stat_cn_month}" >> $fu99
+echo "stat_cn_day=${stat_cn_day}" >> $fu99
+echo "stat_cn_hour=${stat_cn_hour}" >> $fu99
+echo "stat_cn_min=${stat_cn_min}" >> $fu99
+echo "stat_cn_sec=${stat_cn_sec}" >> $fu99
+echo "writ_mn_year=${writ_mn_year}" >> $fu99
+echo "writ_mn_month=${writ_mn_month}" >> $fu99
+echo "writ_mn_day=${writ_mn_day}" >> $fu99
+echo "writ_mn_hour=${writ_mn_hour}" >> $fu99
+echo "writ_mn_min=${writ_mn_min}" >> $fu99
+echo "writ_mn_sec=${writ_mn_sec}" >> $fu99
+echo "writ_2d_year=${writ_2d_year}" >> $fu99
+echo "writ_2d_month=${writ_2d_month}" >> $fu99
+echo "writ_2d_day=${writ_2d_day}" >> $fu99
+echo "writ_2d_hour=${writ_2d_hour}" >> $fu99
+echo "writ_2d_min=${writ_2d_min}" >> $fu99
+echo "writ_2d_sec=${writ_2d_sec}" >> $fu99
+echo "writ_en_year=${writ_en_year}" >> $fu99
+echo "writ_en_month=${writ_en_month}" >> $fu99
+echo "writ_en_day=${writ_en_day}" >> $fu99
+echo "writ_en_hour=${writ_en_hour}" >> $fu99
+echo "writ_en_min=${writ_en_min}" >> $fu99
+echo "writ_en_sec=${writ_en_sec}" >> $fu99
+echo "writ_cn_year=${writ_cn_year}" >> $fu99
+echo "writ_cn_month=${writ_cn_month}" >> $fu99
+echo "writ_cn_day=${writ_cn_day}" >> $fu99
+echo "writ_cn_hour=${writ_cn_hour}" >> $fu99
+echo "writ_cn_min=${writ_cn_min}" >> $fu99
+echo "writ_cn_sec=${writ_cn_sec}" >> $fu99
+echo "nkeisu_day=${nkeisu_day}" >> $fu99
+echo "set_start=.true." >> $fu99
+echo "nstart_year=${year}" >> $fu99
+echo "nstart_month=${smonth}" >> $fu99
+echo "nstart_day=${sday}" >> $fu99
+echo "&end" >> $fu99
+
+# usetide namelist
+echo "&ut" >> $fu99
+echo "ut_2n2=${ut_2n2}" >> $fu99
+echo "ut_2q1=${ut_2q1}" >> $fu99
+echo "ut_alp2=${ut_alp2}" >> $fu99
+echo "ut_bet2=${ut_bet2}" >> $fu99
+echo "ut_dlt2=${ut_dlt2}" >> $fu99
+echo "ut_eps2=${ut_eps2}" >> $fu99
+echo "ut_et2=${ut_et2}" >> $fu99
+echo "ut_et2s=${ut_et2s}" >> $fu99
+echo "ut_gam2=${ut_gam2}" >> $fu99
+echo "ut_j1=${ut_j1}" >> $fu99
+echo "ut_j1s=${ut_j1s}" >> $fu99
+echo "ut_k1=${ut_k1}" >> $fu99
+echo "ut_k1s=${ut_k1s}" >> $fu99
+echo "ut_k1s2=${ut_k1s2}" >> $fu99
+echo "ut_k2=${ut_k2}" >> $fu99
+echo "ut_k2s=${ut_k2s}" >> $fu99
+echo "ut_kai1=${ut_kai1}" >> $fu99
+echo "ut_l2=${ut_l2}" >> $fu99
+echo "ut_lmd2=${ut_lmd2}" >> $fu99
+echo "ut_m1=${ut_m1}" >> $fu99
+echo "ut_m1s=${ut_m1s}" >> $fu99
+echo "ut_m2=${ut_m2}" >> $fu99
+echo "ut_m2s=${ut_m2s}" >> $fu99
+echo "ut_mf=${ut_mf}" >> $fu99
+echo "ut_mfs=${ut_mfs}" >> $fu99
+echo "ut_mm=${ut_mm}" >> $fu99
+echo "ut_mms1=${ut_mms1}" >> $fu99
+echo "ut_mms2=${ut_mms2}" >> $fu99
+echo "ut_msf=${ut_msf}" >> $fu99
+echo "ut_msm=${ut_msm}" >> $fu99
+echo "ut_mtm=${ut_mtm}" >> $fu99
+echo "ut_mtms=${ut_mtms}" >> $fu99
+echo "ut_mu2=${ut_mu2}" >> $fu99
+echo "ut_mu2s=${ut_mu2s}" >> $fu99
+echo "ut_n2=${ut_n2}" >> $fu99
+echo "ut_n2s=${ut_n2s}" >> $fu99
+echo "ut_nu2=${ut_nu2}" >> $fu99
+echo "ut_nu2s=${ut_nu2s}" >> $fu99
+echo "ut_o1=${ut_o1}" >> $fu99
+echo "ut_o1s=${ut_o1s}" >> $fu99
+echo "ut_oo1=${ut_oo1}" >> $fu99
+echo "ut_oo1s=${ut_oo1s}" >> $fu99
+echo "ut_p1=${ut_p1}" >> $fu99
+echo "ut_p1s=${ut_p1s}" >> $fu99
+echo "ut_phi1=${ut_phi1}" >> $fu99
+echo "ut_pi1=${ut_pi1}" >> $fu99
+echo "ut_psi1=${ut_psi1}" >> $fu99
+echo "ut_q1=${ut_q1}" >> $fu99
+echo "ut_q1s=${ut_q1s}" >> $fu99
+echo "ut_r2=${ut_r2}" >> $fu99
+echo "ut_rho1=${ut_rho1}" >> $fu99
+echo "ut_s2=${ut_s2}" >> $fu99
+echo "ut_s2s=${ut_s2s}" >> $fu99
+echo "ut_sa=${ut_sa}" >> $fu99
+echo "ut_sgm1=${ut_sgm1}" >> $fu99
+echo "ut_ssa=${ut_ssa}" >> $fu99
+echo "ut_ssas=${ut_ssas}" >> $fu99
+echo "ut_t2=${ut_t2}" >> $fu99
+echo "ut_tau1=${ut_tau1}" >> $fu99
+echo "ut_the1=${ut_the1}" >> $fu99
+echo "ut_et2=${ut_zet2}" >> $fu99
+echo "&end" >> $fu99
+
+# filename namelist
+echo "&filename" >> $fu99
+echo "rsfile='${outdir}/rs_bndtide_full.nc'" >> $fu99
+echo "filepath_3d='${outdir}/'" >> $fu99
+echo "filename_2d='${outdir}/rs_bndtide_finetide.nc'" >> $fu99
+echo "filename_en='${outdir}/rs_bndtide_energy.nc'" >> $fu99
+echo "filepath_cn='${outdir}/${tidesave}'" >> $fu99
+echo "filename_eq='${outdir}/rs_bndtide_eqterms.nc'" >> $fu99
+echo "datadir='${datadir}/'" >> $fu99
+
+# calculation day
+# sjday=`${modeldir}/src/ymd2julian $year $smonth $sday`
+# jday=$sjday
+# num=1
+# while [ $num -le $cday ] ; do
+#     ymd=`${modeldir}/src/julian2ymd $year $jday`
+#     echo "rmfile(${num})='${outdir}/rm_rokka${rev}_${ymd}.nc'" >> $fu99
+#     jday=`expr $jday + 1`
+#     num=`expr $num + 1`
+# done
+
+# mean files
+echo "flxmfile='${outdir}/fm_rokka${rev}_${exp}.nc'" >> $fu99
+echo "sffile0='${fluxdir}/scflux_rokka_${expp}.nc'" >> $fu99
+echo "sffile1='${fluxdir}/scflux_rokka_${exp}.nc'" >> $fu99
+echo "sffile2='${fluxdir}/scflux_rokka_${expn}.nc'" >> $fu99
+echo "wsfile0='${fluxdir}/ws_rokka_${expp}.nc'" >> $fu99
+echo "wsfile1='${fluxdir}/ws_rokka_${exp}.nc'" >> $fu99
+echo "wsfile2='${fluxdir}/ws_rokka_${expn}.nc'" >> $fu99
+echo "&end" >> $fu99
+export fu99
+
+# --- computational setup
+
+# threats, CPU and MPI information
+echo " $EXEC Started                 -- `date`"
+OMP_NUM_THREADS=4 ; export OMP_NUM_THREADS
+PARALLEL=$OMP_NUM_THREADS ; export PARALLEL
+mpiexec -n 32 $EXEC -Wl,-T20,-T21,-T23,-T24,-T25,-T37,-T74
+code=$?
+echo " $EXEC Ended CODE:= $code         -- `date`"
+exit $code

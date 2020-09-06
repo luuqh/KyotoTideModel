@@ -1,0 +1,36 @@
+#!/bin/sh
+
+if [ $# -lt 3 ] ; then
+    echo "Usage: ymd2julian year month day"
+    exit 2
+fi
+
+if [ $2 -gt 12 -o $2 -lt 1 ] ; then
+    exit 3
+fi
+
+lpy=`expr $1 % 4`
+if [ $lpy -eq 0 ]; then
+    febday=29
+else
+    febday=28
+fi
+
+if [ $2 -eq 1 ]; then
+    sumday=$3
+else
+    nm=1
+    sumday=0
+    for mday in 31 $febday 31 30 31 30 31 31 30 31 30 31
+      do
+      sumday=`expr $sumday + $mday`
+      nm=`expr $nm + 1`
+      if [ $nm -eq $2 ]; then
+	  sumday=`expr $sumday + $3`
+	  break
+      fi
+    done
+fi
+
+echo $sumday
+exit 0

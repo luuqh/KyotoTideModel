@@ -1,0 +1,44 @@
+#!/bin/sh
+
+
+if [ $# -lt 2 ] ; then
+    echo "Usage:  julian2ymd year julian_day"
+    exit 2
+fi
+
+lpy=`expr $1 % 4`
+if [ $lpy -eq 0 ] ; then
+    febday=29
+    if [ $2 -gt 366 -o $2 -lt 1 ] ; then
+	exit 1
+    fi
+else
+    febday=28
+    if [ $2 -gt 365 -o $2 -lt 1 ] ; then
+	exit 1
+    fi
+fi
+
+jday=0
+month=1
+pjday=31
+
+if [ $2 -le 31 ] ; then
+    momth=1
+    mday=$2
+else
+    for ds in 31 $febday 31 30 31 30 31 31 30 31 30 31
+      do
+      jday=`expr $jday + $ds`
+      if [ $2 -le $jday ] ; then
+	  mday=`expr $2 - $pjday`
+	  break
+      fi
+      pjday=$jday
+      month=`expr $month + 1`
+    done
+fi
+
+ymd=`echo $1 $month $mday | awk '{printf"%4.4d%2.2d%2.2d",$1,$2,$3}'`
+echo $ymd
+exit 0
